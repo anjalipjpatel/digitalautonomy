@@ -1,0 +1,103 @@
+{
+  "uuid": "df39eed0-9876-45cb-9580-0ea23ce9c1aa",
+  "lastMigration": 33,
+  "name": "Event Notification API Specification - TPP Endpoints",
+  "endpointPrefix": "open-banking/v4.0",
+  "latency": 0,
+  "port": 3003,
+  "hostname": "",
+  "folders": [],
+  "routes": [
+    {
+      "uuid": "b1f56fac-5adc-4028-a701-5d8dc945f981",
+      "type": "http",
+      "documentation": "Send an event notification",
+      "method": "post",
+      "endpoint": "event-notifications",
+      "responses": [
+        {
+          "uuid": "aa0f3a83-44ce-4bcf-8391-871e150f31a1",
+          "body": "",
+          "latency": 0,
+          "statusCode": 202,
+          "label": "Accepted",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "key": "RateLimit-Policy",
+              "value": ""
+            },
+            {
+              "key": "RateLimit",
+              "value": ""
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [],
+          "rulesOperator": "OR",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": true,
+          "crudKey": "id",
+          "callbacks": []
+        }
+      ],
+      "responseMode": null,
+      "streamingMode": null,
+      "streamingInterval": 0
+    }
+  ],
+  "rootChildren": [
+    {
+      "type": "route",
+      "uuid": "b1f56fac-5adc-4028-a701-5d8dc945f981"
+    }
+  ],
+  "proxyMode": false,
+  "proxyHost": "",
+  "proxyRemovePrefix": false,
+  "tlsOptions": {
+    "enabled": false,
+    "type": "CERT",
+    "pfxPath": "",
+    "certPath": "",
+    "keyPath": "",
+    "caPath": "",
+    "passphrase": ""
+  },
+  "cors": true,
+  "headers": [
+    {
+      "key": "Access-Control-Allow-Origin",
+      "value": "*"
+    },
+    {
+      "key": "Access-Control-Allow-Methods",
+      "value": "GET,POST,PUT,PATCH,DELETE,HEAD,OPTIONS"
+    },
+    {
+      "key": "Access-Control-Allow-Headers",
+      "value": "Content-Type, Origin, Accept, Authorization, Content-Length, X-Requested-With"
+    }
+  ],
+  "proxyReqHeaders": [
+    {
+      "key": "",
+      "value": ""
+    }
+  ],
+  "proxyResHeaders": [
+    {
+      "key": "",
+      "value": ""
+    }
+  ],
+  "data": [],
+  "callbacks": []
+}

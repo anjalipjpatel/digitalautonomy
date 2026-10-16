@@ -24,3 +24,11 @@ services:
     container_name: account-api
     ports:
       - "3002:3000"
+  
+  # Mock Event Notification API (OBIE compliant)
+  event-notification-api:
+    build:
+      context: ./mock-services/events
+    container_name: event-notification-api
+    ports:
+      - "3003:3000"
