@@ -16,3 +16,11 @@ services:
     container_name: payment-api
     ports: 
       - "3001:3000"
+
+  # Mock Account + Transaction API (OBIE compliant)
+  account-api:
+    build:
+      context: ./mock-services/account
+    container_name: account-api
+    ports:
+      - "3002:3000"
