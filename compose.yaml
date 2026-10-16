@@ -3,7 +3,16 @@ services:
     build:
       context: .
       dockerfile: docker/api/Dockerfile
+    container_name: api
     environment:
       - PORT=8080
     ports:
       - "8080:8080"
+  
+  # Mock Payment Initiation API (OBIE compliant)
+  payment-api:
+    build:
+      context: ./mock-services/payment
+    container_name: payment-api
+    ports: 
+      - "3001:3000"
