@@ -6,6 +6,7 @@ services:
     container_name: api
     environment:
       - PORT=8080
+      - PAYMENT_API_URL=http://payment-api:3000/open-banking/v4.0/pisp
     ports:
       - "8080:8080"
   
