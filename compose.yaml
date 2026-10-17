@@ -9,7 +9,7 @@ services:
       - PAYMENT_API_URL=http://payment-api:3000/open-banking/v4.0/pisp
     ports:
       - "8080:8080"
-  
+
   # Mock Payment Initiation API (OBIE compliant)
   payment-api:
     build:
@@ -33,3 +33,18 @@ services:
     container_name: event-notification-api
     ports:
       - "3003:3000"
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: frontend
+    environment:
+      - API_PROXY_TARGET=http://api:8080
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - api
+  
