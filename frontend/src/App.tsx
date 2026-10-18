@@ -68,10 +68,18 @@ function App() {
 
   function changeSender(userId: string) {
     setFromUser(userId)
+    setResult(null)
+    setError('')
     if (toUser === userId) {
       const otherUser = users.find((user) => user.id !== userId)
       if (otherUser) setToUser(otherUser.id)
     }
+  }
+
+  function changeRecipient(userId: string) {
+    setToUser(userId)
+    setResult(null)
+    setError('')
   }
 
   return (
@@ -121,7 +129,7 @@ function App() {
               users={users}
               selectedUser={toUser}
               disabledUser={fromUser}
-              onChange={setToUser}
+              onChange={changeRecipient}
             />
 
             <div className="space-y-2">
@@ -134,7 +142,11 @@ function App() {
                 autoComplete="off"
                 placeholder="0.00"
                 value={amount}
-                onChange={(event) => setAmount(event.target.value)}
+                onChange={(event) => {
+                  setAmount(event.target.value)
+                  setResult(null)
+                  setError('')
+                }}
                 aria-describedby="amount-help"
                 required
               />
@@ -172,8 +184,8 @@ function App() {
               <CardTitle>Your payment</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {[{ user: sender, label: 'FROM' }, { user: recipient, label: 'TO' }].map(({ user, label }, index) => (
-                <div key={label}>
+              {[{ user: sender, label: 'Paying from' }, { user: recipient, label: 'Sending to' }].map(({ user, label }, index) => (
+                <div key={`${label}-${user.id}`}>
                   {index > 0 && (
                     <div className="mb-4 ml-5 h-5 border-l" aria-hidden="true" />
                   )}
@@ -186,6 +198,7 @@ function App() {
                     <div>
                       <p className="text-xs text-muted-foreground">{label}</p>
                       <p className="font-medium">{user.name}</p>
+                      <p className="text-sm text-muted-foreground">{user.account}</p>
                     </div>
                   </div>
                 </div>
