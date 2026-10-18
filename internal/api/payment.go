@@ -85,6 +85,14 @@ func NewPaymentHandler(paymentAPIURL string) http.HandlerFunc {
 			http.Error(w, "Mockoon consent response has an empty ConsentID", http.StatusBadGateway)
 			return
 		}
+		if consentResponse.Data.Status != "AUTH" {
+			http.Error(
+				w,
+				fmt.Sprintf("payment consent is not authorised (status %q)", consentResponse.Data.Status),
+				http.StatusBadGateway,
+			)
+			return
+		}
 
 		paymentRequest := CreatePaymentRequest{
 			Data: PaymentRequestData{
@@ -105,6 +113,14 @@ func NewPaymentHandler(paymentAPIURL string) http.HandlerFunc {
 		if err != nil {
 			log.Printf("Mockoon payment response: HTTP %d %s", paymentStatus, paymentBody)
 			http.Error(w, "payment request to Mockoon failed", http.StatusBadGateway)
+			return
+		}
+		if paymentResponse.Data.Status == "" || paymentResponse.Data.Status == "RJCT" {
+			http.Error(
+				w,
+				fmt.Sprintf("Mockoon did not accept the payment (status %q)", paymentResponse.Data.Status),
+				http.StatusBadGateway,
+			)
 			return
 		}
 
