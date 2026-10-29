@@ -32,3 +32,29 @@ services:
     container_name: event-notification-api
     ports:
       - "3003:3000"
+
+  # DB
+  db:
+    build:
+      context: ./db
+      dockerfile: Dockerfile
+    container_name: db
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  adminer:
+    image: adminer:latest
+    container_name: adminer_ui
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
