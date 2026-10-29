@@ -1,5 +1,4 @@
--- Enable UUID extension if needed
--- CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+-- Initialisation queries for the database schema.
 
 CREATE TYPE user_role AS ENUM ('vulnerable_owner', 'delegate', 'admin');
 
