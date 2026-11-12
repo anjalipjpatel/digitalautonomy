@@ -9,7 +9,10 @@ import (
 	"net/http"
 	"os"
 
+	_ "digitalautonomy/docs"
 	"digitalautonomy/internal/api"
+
+	httpSwagger "github.com/swaggo/http-swagger"
 )
 
 func main() {
@@ -17,6 +20,7 @@ func main() {
 	if port == "" {
 		port = "8080"
 	}
+	http.Handle("/swagger/", httpSwagger.WrapHandler) // For Swagger UI
 	http.HandleFunc("/health", api.HealthHandler)
 
 	log.Println("Server running on port: " + port)
