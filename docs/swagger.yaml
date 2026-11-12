@@ -1,0 +1,21 @@
+basePath: /
+info:
+  contact: {}
+  description: API for the digital autonomy prototype.
+  title: Digital Autonomy API
+  version: "1.0"
+paths:
+  /health:
+    get:
+      description: Returns OK when the API is running.
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+      summary: Check API health
+      tags:
+      - health
+swagger: "2.0"

@@ -1,3 +1,7 @@
+// @title Digital Autonomy API
+// @version 1.0
+// @description API for the digital autonomy prototype.
+// @BasePath /
 package main
 
 import (
