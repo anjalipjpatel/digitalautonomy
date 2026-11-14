@@ -18,9 +18,9 @@ func TestHash(t *testing.T) {
 		{name: "empty password", password: ""},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			encoded, err := Hash(tt.password)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			encoded, err := Hash(tc.password)
 			if err != nil {
 				t.Fatalf("Hash() error = %v", err)
 			}
@@ -58,22 +58,22 @@ func TestHash(t *testing.T) {
 func TestVerify(t *testing.T) {
 	encoded := testEncodedHash("correct password")
 	tests := []struct {
-		name        string
-		password    string
-		encoded     string
-		wantValid   bool
-		wantErr     bool
+		name      string
+		password  string
+		encoded   string
+		wantValid bool
+		wantErr   bool
 	}{
 		{
 			name:      "correct password",
-			password: "correct password",
-			encoded:  encoded,
+			password:  "correct password",
+			encoded:   encoded,
 			wantValid: true,
 		},
 		{
 			name:      "incorrect password",
-			password: "wrong password",
-			encoded:  encoded,
+			password:  "wrong password",
+			encoded:   encoded,
 			wantValid: false,
 		},
 		{
@@ -103,14 +103,14 @@ func TestVerify(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := Verify(tt.password, tt.encoded)
-			if (err != nil) != tt.wantErr {
-				t.Fatalf("Verify() error = %v, wantErr %t", err, tt.wantErr)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := Verify(tc.password, tc.encoded)
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("Verify() error = %v, wantErr %t", err, tc.wantErr)
 			}
-			if err == nil && got != tt.wantValid {
-				t.Errorf("Verify() = %t, want %t", got, tt.wantValid)
+			if err == nil && got != tc.wantValid {
+				t.Errorf("Verify() = %t, want %t", got, tc.wantValid)
 			}
 		})
 	}
