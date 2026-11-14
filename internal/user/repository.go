@@ -7,16 +7,19 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 var ErrEmailTaken = errors.New("email already registered.")
 
-type Repository struct {
-	db *pgxpool.Pool
+type userDB interface {
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
 }
 
-func NewRepository(db *pgxpool.Pool) *Repository {
+type Repository struct {
+	db userDB
+}
+
+func NewRepository(db userDB) *Repository {
 	return &Repository{
 		db: db,
 	}
