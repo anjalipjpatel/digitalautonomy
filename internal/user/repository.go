@@ -2,12 +2,16 @@ package user
 
 import (
 	"context"
+	_ "embed"
 	"errors"
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 )
+
+//go:embed queries/create_user.sql
+var queryCreateNewUser string
 
 var ErrEmailTaken = errors.New("email already registered.")
 
