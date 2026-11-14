@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -25,12 +26,12 @@ func (r *Repository) Create(ctx context.Context, params CreateUserParams) (*User
 	var created User
 	var role string
 
-	// TODO: move to SQL file with placehodlers
-	err := r.db.QueryRow(ctx, `
-        INSERT INTO users (email, hashed_password, name, role)
-        VALUES ($1, $2, $3, $4)
-        RETURNING id::text, email, name, role::text, created_at
-    `, params.Email, params.HashedPassword, params.Name, string(params.Role)).
+	err := r.db.QueryRow(ctx, queryCreateNewUser, pgx.NamedArgs{
+		"email":           params.Email,
+		"hashed_password": params.HashedPassword,
+		"name":            params.Name,
+		"role":            string(params.Role),
+	}).
 		Scan(&created.ID, &created.Email, &created.Name, &role, &created.CreatedAt)
 
 	if err != nil {
