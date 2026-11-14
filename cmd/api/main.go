@@ -49,11 +49,13 @@ func main() {
 
 	userService := user.NewService(user.NewRepository(pool))
 	userHandler := api.NewUserHandler(userService)
+	authHandler := api.NewAuthHandler(userService)
 
 	mux := http.NewServeMux()
 	mux.Handle("/swagger/", httpSwagger.WrapHandler) // For Swagger UI
 	mux.HandleFunc("/health", api.HealthHandler)
-	mux.HandleFunc("POST /users", userHandler.Create)
+	mux.HandleFunc("POST /users", userHandler.Create) // Creating new users
+	mux.HandleFunc("POST /login", authHandler.Login)  // Login mechanism
 
 	log.Println("Server running on port: " + port)
 	log.Fatal(http.ListenAndServe(":"+port, mux))

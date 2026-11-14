@@ -13,6 +13,9 @@ import (
 //go:embed queries/create_user.sql
 var queryCreateNewUser string
 
+//go:embed queries/login.sql
+var queryLogin string
+
 var ErrEmailTaken = errors.New("email already registered.")
 
 type userDB interface {
@@ -51,4 +54,29 @@ func (r *Repository) Create(ctx context.Context, params CreateUserParams) (*User
 
 	created.Role = Role(role)
 	return &created, nil
+}
+
+func (r *Repository) GetByEmail(ctx context.Context, email string) (*userWithPassword, error) {
+	var found userWithPassword
+	var role string
+
+	err := r.db.QueryRow(ctx, queryLogin, pgx.NamedArgs{
+		"email": email,
+	}).Scan(
+		&found.ID,
+		&found.Email,
+		&found.Name,
+		&role,
+		&found.CreatedAt,
+		&found.hashedPassword,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, fmt.Errorf("no matching user found: %w", err)
+		}
+		return nil, fmt.Errorf("looking up user by email: %w", err)
+	}
+
+	found.Role = Role(role)
+	return &found, nil
 }
