@@ -1,7 +1,7 @@
 import * as React from "react"
 import { Link, type LinkProps } from "react-router-dom"
 import { type VariantProps } from "class-variance-authority"
-import { buttonVariants } from "@/components/ui/button"
+import { buttonVariants } from "@/components/ui/shadcn/button"
 import { cn } from "@/lib/utils"
 
 
