@@ -1,18 +1,21 @@
-import './App.css'
+import { ButtonLink } from './components/ui/button-link'
 import LoginPage from './pages/LoginPage'
+import { Route, Routes } from 'react-router-dom'
 
 function App() {
-  if (window.location.pathname === '/login') {
-    return <LoginPage />
-  }
-
   return (
-    <main>
-      <h1>Welcome</h1>
-      <a className="button" href="/login">
-        Go to login
-      </a>
-    </main>
+    <Routes>
+      <Route
+        path="/"
+        element={
+          <main>
+            <h1>Digital Autonomy</h1>
+            <ButtonLink to="/login">Go to login</ButtonLink>
+          </main>
+        }
+      />
+      <Route path="/login" element={<LoginPage />} />
+    </Routes>
   )
 }
 

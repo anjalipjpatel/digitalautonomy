@@ -1,8 +1,13 @@
+import { ButtonLink } from '../components/ui/button-link'
+
 export default function LoginPage() {
   return (
-    <main>
+
+<main>
       <h1>Login</h1>
-      <a href="/">Back to home</a>
+      <ButtonLink to="/">
+        Back to home
+      </ButtonLink>
     </main>
   )
 }
