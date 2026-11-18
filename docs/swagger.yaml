@@ -34,6 +34,37 @@ definitions:
       role:
         $ref: '#/definitions/user.Role'
     type: object
+definitions:
+  api.loginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    type: object
+  user.Role:
+    enum:
+    - vulnerable_owner
+    - delegate
+    - admin
+    type: string
+    x-enum-varnames:
+    - RoleVulnerableOwner
+    - RoleDelegate
+    - RoleAdmin
+  user.User:
+    properties:
+      createdAt:
+        type: string
+      email:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      role:
+        $ref: '#/definitions/user.Role'
+    type: object
 info:
   contact: {}
   description: API for the digital autonomy prototype.
@@ -87,4 +118,38 @@ paths:
       summary: Create a user
       tags:
       - users
+  /login:
+    post:
+      consumes:
+      - application/json
+      description: Validate login credentials and authorise access to the system.
+      parameters:
+      - description: Login details
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.loginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Login successful
+          schema:
+            $ref: '#/definitions/user.User'
+        "400":
+          description: Invalid JSON body
+          schema:
+            type: string
+        "401":
+          description: Invalid email or password
+          schema:
+            type: string
+        "500":
+          description: Could not log in
+          schema:
+            type: string
+      summary: Login to system
+      tags:
+      - auth
 swagger: "2.0"
