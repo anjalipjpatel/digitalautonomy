@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/shadcn/input'
 import { ButtonLink } from '@/components/ui/button-link'
 import { useLocation } from 'react-router-dom'
 import { useNavigate } from 'react-router-dom'
+import type { UserProfile } from '@/types/user'
 
 export default function LoginPage() {
   const navigate = useNavigate()
@@ -34,8 +35,9 @@ export default function LoginPage() {
         setError((await response.text()) || 'Login failed.')
       } else {
         // Handle successful login - redirect to user dashboards.
-        navigate('/dashboard')
-      } 
+        const user: UserProfile = await response.json()
+        navigate('/dashboard', {state: {user}})
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not connect to the server')
     } finally {
