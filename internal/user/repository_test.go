@@ -34,7 +34,6 @@ func (row stubRow) Scan(dest ...any) error {
 }
 
 func TestRepositoryCreate(t *testing.T) {
-	createdAt := time.Date(2026, time.November, 14, 10, 0, 0, 0, time.UTC)
 	params := CreateUserParams{
 		Email:          "person@example.com",
 		HashedPassword: "hashed-password",
@@ -128,6 +127,100 @@ func TestRepositoryCreate(t *testing.T) {
 				"name":            params.Name,
 				"role":            string(params.Role),
 			}
+			if !reflect.DeepEqual(gotArgs, wantArgs) {
+				t.Errorf("QueryRow() named arguments = %#v, want %#v", gotArgs, wantArgs)
+			}
+		})
+	}
+}
+
+func TestRepositoryGetByEmail(t *testing.T) {
+	databaseErr := errors.New("database unavailable")
+
+	tests := []struct {
+		name        string
+		scanErr     error
+		wantUser    *userWithPassword
+		wantErr     error
+		wantErrText string
+	}{
+		{
+			name: "found",
+			wantUser: &userWithPassword{
+				User: User{
+					ID:        "user-123",
+					Email:     "person@example.com",
+					Name:      "Test Person",
+					Role:      RoleAdmin,
+					CreatedAt: createdAt,
+				},
+				hashedPassword: "stored-hash",
+			},
+		},
+		{
+			name:        "email not found",
+			scanErr:     pgx.ErrNoRows,
+			wantErr:     pgx.ErrNoRows,
+			wantErrText: "no matching user found: no rows in result set",
+		},
+		{
+			name:        "database error",
+			scanErr:     databaseErr,
+			wantErr:     databaseErr,
+			wantErrText: "looking up user by email: database unavailable",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			db := &stubUserDB{
+				row: stubRow{scan: func(dest ...any) error {
+					if tc.scanErr != nil {
+						return tc.scanErr
+					}
+					*dest[0].(*string) = "user-123"
+					*dest[1].(*string) = "person@example.com"
+					*dest[2].(*string) = "Test Person"
+					*dest[3].(*string) = string(RoleAdmin)
+					*dest[4].(*time.Time) = createdAt
+					*dest[5].(*string) = "stored-hash"
+					return nil
+				}},
+			}
+			repo := NewRepository(db)
+
+			got, err := repo.GetByEmail(context.Background(), "person@example.com")
+
+			if tc.wantErr == nil {
+				if err != nil {
+					t.Fatalf("GetByEmail() error = %v, want nil", err)
+				}
+				if !reflect.DeepEqual(got, tc.wantUser) {
+					t.Errorf("GetByEmail() = %#v, want %#v", got, tc.wantUser)
+				}
+			} else {
+				if !errors.Is(err, tc.wantErr) {
+					t.Errorf("GetByEmail() error = %v, want error matching %v", err, tc.wantErr)
+				}
+				if err.Error() != tc.wantErrText {
+					t.Errorf("GetByEmail() error = %q, want %q", err, tc.wantErrText)
+				}
+				if got != nil {
+					t.Errorf("GetByEmail() user = %#v, want nil on error", got)
+				}
+			}
+
+			if db.query != queryLogin {
+				t.Errorf("QueryRow() query = %q, want %q", db.query, queryLogin)
+			}
+			if len(db.args) != 1 {
+				t.Fatalf("QueryRow() received %d argument groups, want 1", len(db.args))
+			}
+			gotArgs, ok := db.args[0].(pgx.NamedArgs)
+			if !ok {
+				t.Fatalf("QueryRow() argument type = %T, want pgx.NamedArgs", db.args[0])
+			}
+			wantArgs := pgx.NamedArgs{"email": "person@example.com"}
 			if !reflect.DeepEqual(gotArgs, wantArgs) {
 				t.Errorf("QueryRow() named arguments = %#v, want %#v", gotArgs, wantArgs)
 			}

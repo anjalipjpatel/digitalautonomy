@@ -18,9 +18,19 @@ type User struct {
 	CreatedAt time.Time
 }
 
+type userWithPassword struct {
+	User
+	hashedPassword string
+}
+
 type CreateUserParams struct {
 	Email          string
 	HashedPassword string
 	Name           string
 	Role           Role
+}
+
+type LoginParams struct {
+	Email    string
+	Password string
 }

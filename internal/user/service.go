@@ -7,9 +7,12 @@ import (
 	"fmt"
 	"net/mail"
 	"strings"
+
+	"github.com/jackc/pgx/v5"
 )
 
 var ErrInvalidInput = errors.New("invalid user input")
+var ErrInvalidCredentials = errors.New("invalid credentials")
 
 type Service struct {
 	users *Repository
@@ -60,4 +63,25 @@ func (s *Service) Create(ctx context.Context, email, name, password, role string
 			Role:           userRole,
 		},
 	)
+}
+
+func (s *Service) Login(ctx context.Context, email, password string) (*User, error) {
+	email = strings.ToLower(strings.TrimSpace(email))
+	found, err := s.users.GetByEmail(ctx, email)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrInvalidCredentials
+		}
+		return nil, err
+	}
+
+	valid, err := passwordhash.Verify(password, found.hashedPassword)
+	if err != nil {
+		return nil, fmt.Errorf("failed to verify password: %w", err)
+	}
+	if !valid {
+		return nil, ErrInvalidCredentials
+	}
+
+	return &found.User, nil
 }

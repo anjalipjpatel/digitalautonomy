@@ -11,6 +11,8 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
+var createdAt = time.Date(2026, time.November, 14, 10, 0, 0, 0, time.UTC)
+
 type serviceTestDB struct {
 	args []any
 	row  pgx.Row
@@ -28,7 +30,6 @@ func (row serviceTestRow) Scan(dest ...any) error {
 }
 
 func TestServiceCreate(t *testing.T) {
-	createdAt := time.Date(2026, time.November, 14, 10, 0, 0, 0, time.UTC)
 	tests := []struct {
 		name     string
 		email    string
@@ -168,6 +169,97 @@ func TestServiceCreate(t *testing.T) {
 			}
 			if !valid {
 				t.Error("hashed password does not verify against the original password")
+			}
+		})
+	}
+}
+
+func TestServiceLogin(t *testing.T) {
+	storedHash, _ := passwordhash.Hash("correct-password")
+
+	tests := []struct {
+		name         string
+		email        string
+		password     string
+		scanErr      error
+		wantErr      error
+		wantEmailArg string
+	}{
+		{
+			name:         "valid login",
+			email:        "  PERSON@example.com ",
+			password:     "correct-password",
+			wantEmailArg: "person@example.com",
+		},
+		{
+			name:         "invalid email",
+			email:        "unknown@example.com",
+			password:     "correct-password",
+			scanErr:      pgx.ErrNoRows,
+			wantErr:      ErrInvalidCredentials,
+			wantEmailArg: "unknown@example.com",
+		},
+		{
+			name:         "invalid password",
+			email:        "person@example.com",
+			password:     "wrong-password",
+			wantErr:      ErrInvalidCredentials,
+			wantEmailArg: "person@example.com",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			db := &serviceTestDB{
+				row: serviceTestRow(func(dest ...any) error {
+					if tc.scanErr != nil {
+						return tc.scanErr
+					}
+					*dest[0].(*string) = "user-123"
+					*dest[1].(*string) = "person@example.com"
+					*dest[2].(*string) = "Test Person"
+					*dest[3].(*string) = string(RoleAdmin)
+					*dest[4].(*time.Time) = createdAt
+					*dest[5].(*string) = storedHash
+					return nil
+				}),
+			}
+			service := NewService(NewRepository(db))
+
+			got, err := service.Login(context.Background(), tc.email, tc.password)
+
+			if tc.wantErr != nil {
+				if !errors.Is(err, tc.wantErr) {
+					t.Errorf("Login() error = %v, want error matching %v", err, tc.wantErr)
+				}
+				if got != nil {
+					t.Errorf("Login() user = %#v, want nil on error", got)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("Login() error = %v, want nil", err)
+				}
+				want := &User{
+					ID:        "user-123",
+					Email:     "person@example.com",
+					Name:      "Test Person",
+					Role:      RoleAdmin,
+					CreatedAt: createdAt,
+				}
+				if got == nil || *got != *want {
+					t.Errorf("Login() user = %#v, want %#v", got, want)
+				}
+			}
+
+			if len(db.args) != 1 {
+				t.Fatalf("database received %d argument groups, want 1", len(db.args))
+			}
+			args, ok := db.args[0].(pgx.NamedArgs)
+			if !ok {
+				t.Fatalf("database argument type = %T, want pgx.NamedArgs", db.args[0])
+			}
+			if args["email"] != tc.wantEmailArg {
+				t.Errorf("email argument = %v, want %q", args["email"], tc.wantEmailArg)
 			}
 		})
 	}
