@@ -29,6 +29,18 @@ func NewUserHandler(users userCreator) *UserHandler {
 	}
 }
 
+// Create godoc
+// @Summary Create a user
+// @Description Creates a user account.
+// @Tags users
+// @Accept json
+// @Produce json
+// @Param request body createUserRequest true "User details"
+// @Success 201 {object} user.User "User created"
+// @Failure 400 {string} string "Invalid JSON body or user details"
+// @Failure 409 {string} string "Email already registered"
+// @Failure 500 {string} string "Could not create user"
+// @Router /users [post]
 func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var req createUserRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
