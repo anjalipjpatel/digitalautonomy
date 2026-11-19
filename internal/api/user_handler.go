@@ -107,6 +107,7 @@ func (h *UserHandler) Me(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, "could not load user", http.StatusInternalServerError)
 		return
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")

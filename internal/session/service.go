@@ -13,10 +13,15 @@ var ErrTokenRevoked = errors.New("token revoked")
 var ErrTokenExpired = errors.New("token expired")
 
 type Service struct {
-	sessions *Repository
+	sessions sessionRepository
 }
 
-func NewService(sessions *Repository) *Service {
+type sessionRepository interface {
+	Create(ctx context.Context, userID string) (string, *time.Time, error)
+	GetByToken(ctx context.Context, token string) (*session, error)
+}
+
+func NewService(sessions sessionRepository) *Service {
 	return &Service{
 		sessions: sessions,
 	}
@@ -39,11 +44,15 @@ func (s *Service) GetUserIDByToken(ctx context.Context, token string) (string, e
 		return "", err
 	}
 
+	if session == nil {
+		return "", ErrInvalidSession
+	}
+
 	if session.revoked {
 		return "", ErrTokenRevoked
 	}
 
-	if session == nil || session.expiresAt == nil || !session.expiresAt.After(time.Now()) {
+	if session.expiresAt == nil || !session.expiresAt.After(time.Now()) {
 		return "", ErrTokenExpired
 	}
 

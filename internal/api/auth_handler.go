@@ -72,7 +72,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	// Generate session
 	token, expiresAt, err := h.sessions.Create(r.Context(), loggedIn.ID)
-	if err != nil {
+	if err != nil || expiresAt == nil {
 		http.Error(w, "could not create session", http.StatusInternalServerError)
 		return
 	}

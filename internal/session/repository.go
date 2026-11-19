@@ -55,7 +55,7 @@ func (r *Repository) Create(ctx context.Context, userID string) (string, *time.T
 
 	// Insert to database
 	_, err := r.db.Exec(ctx, queryCreateSession, pgx.NamedArgs{
-		"token":      tokenHash[:],
+		"token_hash": tokenHash[:],
 		"user_id":    userID,
 		"expires_at": expiresAt,
 	})
@@ -69,9 +69,10 @@ func (r *Repository) Create(ctx context.Context, userID string) (string, *time.T
 
 func (r *Repository) GetByToken(ctx context.Context, token string) (*session, error) {
 	var found session
+	tokenHash := hashToken(token)
 
 	err := r.db.QueryRow(ctx, queryGetByToken, pgx.NamedArgs{
-		"token_hash": hashToken(token),
+		"token_hash": tokenHash[:],
 	}).Scan(
 		&found.userID,
 		&found.expiresAt,
