@@ -1,4 +1,6 @@
-import { Link, useLocation } from 'react-router-dom'
+import { useState } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Button } from './ui/shadcn/button'
 import {
   NavigationMenu,
   NavigationMenuItem,
@@ -12,6 +14,32 @@ function isActive(currentPath: string, pathname: string): boolean {
 
 export default function AppNavigation() {
   const { pathname } = useLocation()
+  const navigate = useNavigate()
+  const [logoutError, setLogoutError] = useState('')
+  const [loggingOut, setLoggingOut] = useState(false)
+
+  async function handleLogout() {
+    setLogoutError('')
+    setLoggingOut(true)
+
+    try {
+      const response = await fetch('/api/logout', {
+        method: 'POST',
+        credentials: 'include',
+      })
+
+      if (!response.ok) {
+        setLogoutError((await response.text()) || 'Could not log out.')
+        return
+      }
+
+      navigate('/login', { replace: true })
+    } catch (err) {
+      setLogoutError(err instanceof Error ? err.message : 'Could not log out.')
+    } finally {
+      setLoggingOut(false)
+    }
+  }
 
   return (
     <header className="dark border-b bg-background px-6 py-3 text-foreground">
@@ -27,7 +55,13 @@ export default function AppNavigation() {
             </NavigationMenuItem>
           </NavigationMenuList>
         </NavigationMenu>
+        {pathname === '/dashboard' && (
+          <Button type="button" variant="outline" disabled={loggingOut} onClick={handleLogout}>
+            {loggingOut ? 'Logging out...' : 'Log out'}
+          </Button>
+        )}
       </nav>
+      {logoutError && <p role="alert" className="mx-auto mt-2 max-w-5xl text-sm text-destructive">{logoutError}</p>}
     </header>
   )
 }

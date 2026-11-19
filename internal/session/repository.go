@@ -20,6 +20,9 @@ var queryCreateSession string
 //go:embed queries/get_by_token.sql
 var queryGetByToken string
 
+//go:embed queries/revoke_session.sql
+var queryRevokeSession string
+
 type sessionDB interface {
 	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
 	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
@@ -92,4 +95,16 @@ func (r *Repository) GetByToken(ctx context.Context, token string) (*session, er
 
 func hashToken(token string) [32]byte {
 	return sha256.Sum256([]byte(token))
+}
+
+func (r *Repository) RevokeByToken(ctx context.Context, token string) error {
+	tokenHash := hashToken(token)
+
+	_, err := r.db.Exec(ctx, queryRevokeSession, pgx.NamedArgs{
+		"token_hash": tokenHash[:],
+	})
+	if err != nil {
+		return fmt.Errorf("revoking session: %w", err)
+	}
+	return nil
 }

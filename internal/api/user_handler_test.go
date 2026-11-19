@@ -29,14 +29,21 @@ func (users *meTestUsers) GetByID(_ context.Context, id string) (*user.User, err
 }
 
 type meTestSessions struct {
-	userID string
-	err    error
-	token  string
+	userID       string
+	err          error
+	token        string
+	revokedToken string
+	revokeErr    error
 }
 
 func (sessions *meTestSessions) GetUserIDByToken(_ context.Context, token string) (string, error) {
 	sessions.token = token
 	return sessions.userID, sessions.err
+}
+
+func (sessions *meTestSessions) Revoke(_ context.Context, token string) error {
+	sessions.revokedToken = token
+	return sessions.revokeErr
 }
 
 func TestUserHandlerMe(t *testing.T) {
@@ -123,7 +130,7 @@ func TestUserHandlerMe(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			users := &meTestUsers{profile: tt.profile, err: tt.profileErr}
 			sessions := &meTestSessions{userID: tt.sessionUserID, err: tt.sessionErr}
-			handler := NewUserHandler(users, sessions)
+			handler := NewUserHandler(users, sessions, false)
 
 			request := httptest.NewRequest(http.MethodGet, "/me", nil)
 			if tt.name != "missing cookie" {
@@ -154,6 +161,70 @@ func TestUserHandlerMe(t *testing.T) {
 				if got != *expectedProfile {
 					t.Errorf("response profile = %#v, want %#v", got, *expectedProfile)
 				}
+			}
+
+		})
+	}
+}
+
+func TestUserHandlerLogout(t *testing.T) {
+	databaseErr := errors.New("database unavailable")
+	tests := []struct {
+		name        string
+		cookie      string
+		revokeErr   error
+		secure      bool
+		wantStatus  int
+		wantRevoked string
+	}{
+		{
+			name:       "logout without cookie",
+			wantStatus: http.StatusNoContent,
+		},
+		{
+			name:        "revokes session and clears cookie",
+			cookie:      "current-session",
+			secure:      true,
+			wantStatus:  http.StatusNoContent,
+			wantRevoked: "current-session",
+		},
+		{
+			name:        "revocation failure returns error and clears cookie",
+			cookie:      "current-session",
+			revokeErr:   databaseErr,
+			wantStatus:  http.StatusInternalServerError,
+			wantRevoked: "current-session",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sessions := &meTestSessions{revokeErr: tt.revokeErr}
+			handler := NewUserHandler(&meTestUsers{}, sessions, tt.secure)
+			request := httptest.NewRequest(http.MethodPost, "/logout", nil)
+			if tt.cookie != "" {
+				request.AddCookie(&http.Cookie{Name: "session", Value: tt.cookie})
+			}
+			recorder := httptest.NewRecorder()
+
+			handler.Logout(recorder, request)
+
+			if recorder.Code != tt.wantStatus {
+				t.Fatalf("status = %d, want %d; body=%q", recorder.Code, tt.wantStatus, recorder.Body.String())
+			}
+			if sessions.revokedToken != tt.wantRevoked {
+				t.Errorf("revoked token = %q, want %q", sessions.revokedToken, tt.wantRevoked)
+			}
+
+			cookies := recorder.Result().Cookies()
+			if len(cookies) != 1 {
+				t.Fatalf("got %d cookies, want 1 expired session cookie", len(cookies))
+			}
+			cookie := cookies[0]
+			if cookie.Name != "session" || cookie.Value != "" || cookie.Path != "/" ||
+				cookie.MaxAge != -1 || !cookie.HttpOnly || cookie.Secure != tt.secure ||
+				cookie.SameSite != http.SameSiteLaxMode {
+				t.Errorf("logout cookie attributes incorrect: %#v", cookie)
 			}
 		})
 	}
