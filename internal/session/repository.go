@@ -3,6 +3,7 @@ package session
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	_ "embed"
 	"encoding/base64"
 	"errors"
@@ -28,16 +29,11 @@ type Repository struct {
 	db sessionDB
 }
 
-// todo
 type session struct {
-	token   tokenWithTime
-	userID  string
-	revoked bool
-}
-
-type tokenWithTime struct {
 	token     string
 	expiresAt *time.Time
+	userID    string
+	revoked   bool
 }
 
 func NewRepository(db sessionDB) *Repository {
@@ -46,43 +42,39 @@ func NewRepository(db sessionDB) *Repository {
 	}
 }
 
-// Create
-func (r *Repository) Create(ctx context.Context, userID string) (*tokenWithTime, error) {
+func (r *Repository) Create(ctx context.Context, userID string) (string, *time.Time, error) {
 	// Generate token
 	rawToken := make([]byte, 32)
 	if _, err := rand.Read(rawToken); err != nil {
-		return nil, fmt.Errorf("generating session token: %w", err)
+		return "", nil, fmt.Errorf("generating session token: %w", err)
 	}
 
+	token := base64.RawURLEncoding.EncodeToString(rawToken)
+	tokenHash := hashToken(token)
 	expiresAt := time.Now().UTC().Add(time.Hour) // Expiration = 1 hour after creation.
-	token := tokenWithTime{
-		token:     base64.RawURLEncoding.EncodeToString(rawToken),
-		expiresAt: &(expiresAt),
-	}
 
 	// Insert to database
 	_, err := r.db.Exec(ctx, queryCreateSession, pgx.NamedArgs{
-		"token":      token,
+		"token":      tokenHash[:],
 		"user_id":    userID,
 		"expires_at": expiresAt,
 	})
 
 	if err != nil {
-		return nil, fmt.Errorf("inserting session: %w", err)
+		return "", nil, fmt.Errorf("inserting session: %w", err)
 	}
 
-	return &token, nil
+	return token, &expiresAt, nil
 }
 
-// GetByToken
 func (r *Repository) GetByToken(ctx context.Context, token string) (*session, error) {
 	var found session
 
 	err := r.db.QueryRow(ctx, queryGetByToken, pgx.NamedArgs{
-		"token": token,
+		"token_hash": hashToken(token),
 	}).Scan(
 		&found.userID,
-		&found.token.expiresAt,
+		&found.expiresAt,
 		&found.revoked,
 	)
 
@@ -93,6 +85,10 @@ func (r *Repository) GetByToken(ctx context.Context, token string) (*session, er
 		return nil, fmt.Errorf("looking up session by token: %w", err)
 	}
 
-	found.token.token = token
+	found.token = token
 	return &found, nil
+}
+
+func hashToken(token string) [32]byte {
+	return sha256.Sum256([]byte(token))
 }

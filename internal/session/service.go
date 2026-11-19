@@ -2,13 +2,15 @@ package session
 
 import (
 	"context"
-	"digitalautonomy/internal/user"
 	"errors"
 	"time"
+
+	"github.com/jackc/pgx/v5"
 )
 
-var ErrTokenRevoed = errors.New("token revoked")
-var ErrInvalidToken = errors.New("invalid token")
+var ErrInvalidSession = errors.New("invalid session")
+var ErrTokenRevoked = errors.New("token revoked")
+var ErrTokenExpired = errors.New("token expired")
 
 type Service struct {
 	sessions *Repository
@@ -21,32 +23,32 @@ func NewService(sessions *Repository) *Service {
 }
 
 // Create
-func (s *Service) Create(ctx context.Context, user user.User) (*tokenWithTime, error) {
+func (s *Service) Create(ctx context.Context, userID string) (string, *time.Time, error) {
 	// Call repository to generate token and insert
-	return s.sessions.Create(ctx, user.ID)
+	return s.sessions.Create(ctx, userID)
 }
 
-// Validate
-func (s *Service) Validate(ctx context.Context, token string) (bool, error) {
+// GetUserIDByToken
+func (s *Service) GetUserIDByToken(ctx context.Context, token string) (string, error) {
 	session, err := s.sessions.GetByToken(ctx, token)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return "", ErrInvalidSession
+		}
 		// Repo-level errors - bubble straight up
-		return false, err
+		return "", err
 	}
 
 	if session.revoked {
-		return false, ErrTokenRevoed
+		return "", ErrTokenRevoked
 	}
 
-	if session.token.expiresAt.Before(time.Now()) {
-		return false, ErrInvalidToken
+	if session == nil || session.expiresAt == nil || !session.expiresAt.After(time.Now()) {
+		return "", ErrTokenExpired
 	}
 
-	return true, nil
+	return session.userID, nil
 }
 
-// create session during login - auth_handler.go recieve session creator, create session adn set HTTPonly cookie
-// finish user_handler.go session-validator field
-// GetByID to user service/repositry to return only public profile
-// /Me validate cookie, load profile and return 200 ok, 401 for expreid/invalid, 500 for unexpected db erros
-// main.go: constructions ession repo/service, pass dependeies, and register GET /me
+// main.go: and register GET /me
+// fontend - check error message, if either message then display informative dialogue box
