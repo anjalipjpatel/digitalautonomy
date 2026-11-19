@@ -1,13 +1,60 @@
-import {Navigate, useLocation } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import type { UserProfile } from '@/types/user'
 
 export default function DashboardPage() {
-    const location = useLocation()
-    const user = (location.state as {user?: UserProfile} | null)?.user
+  const navigate = useNavigate()
+  const [user, setUser] = useState<UserProfile | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
-    if (!user) {
-        return <Navigate to="/login" replace />
+  useEffect(() => {
+    const controller = new AbortController()
+
+    async function loadProfile() {
+      try {
+        const response = await fetch('/api/me', {
+          credentials: 'include',
+          signal: controller.signal,
+        })
+
+        if (response.status === 401) {
+          navigate('/login', { replace: true })
+          return
+        }
+        if (!response.ok) {
+          setError(`Could not load your profile (HTTP ${response.status}).`)
+          return
+        }
+
+        const profile: UserProfile = await response.json()
+        setUser(profile)
+      } catch (err) {
+        if (!controller.signal.aborted) {
+          setError(err instanceof Error ? err.message : 'Could not load your profile.')
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setLoading(false)
+        }
+      }
     }
+
+    void loadProfile()
+    return () => controller.abort()
+  }, [navigate])
+
+  if (loading) {
+    return <main className="mx-auto max-w-2xl p-6" role="status">Loading your profile...</main>
+  }
+
+  if (error) {
+    return <main className="mx-auto max-w-2xl p-6" role="alert">{error}</main>
+  }
+
+  if (!user) {
+    return null
+  }
 
   return (
     <main className="mx-auto max-w-2xl space-y-4 p-6">

@@ -94,6 +94,26 @@ paths:
       summary: Login to system
       tags:
       - auth
+  /me:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User
+          schema:
+            $ref: '#/definitions/user.User'
+        "401":
+          description: Invalid cookie
+          schema:
+            type: string
+        "404":
+          description: Unknown user
+          schema:
+            type: string
+      summary: Return the current user.
+      tags:
+      - users
   /users:
     post:
       consumes:

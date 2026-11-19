@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"time"
 
 	"digitalautonomy/internal/user"
 )
@@ -13,17 +14,27 @@ type userAuthenticator interface {
 	Login(ctx context.Context, email, password string) (*user.User, error)
 }
 
+type sessionCreator interface {
+	Create(ctx context.Context, userID string) (token string, expiresAt *time.Time, err error)
+}
+
 type loginRequest struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
 }
 
 type AuthHandler struct {
-	users userAuthenticator
+	users    userAuthenticator
+	sessions sessionCreator
+	secure   bool
 }
 
-func NewAuthHandler(users userAuthenticator) *AuthHandler {
-	return &AuthHandler{users: users}
+func NewAuthHandler(users userAuthenticator, sessions sessionCreator, secureCookies bool) *AuthHandler {
+	return &AuthHandler{
+		users:    users,
+		sessions: sessions,
+		secure:   secureCookies,
+	}
 }
 
 // Login godoc
@@ -58,6 +69,23 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "could not log in", http.StatusInternalServerError)
 		return
 	}
+
+	// Generate session
+	token, expiresAt, err := h.sessions.Create(r.Context(), loggedIn.ID)
+	if err != nil || expiresAt == nil {
+		http.Error(w, "could not create session", http.StatusInternalServerError)
+		return
+	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "session",
+		Value:    token,
+		Path:     "/",
+		Expires:  *expiresAt,
+		HttpOnly: true,
+		Secure:   h.secure,
+		SameSite: http.SameSiteLaxMode,
+	})
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)

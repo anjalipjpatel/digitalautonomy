@@ -1,10 +1,9 @@
-import { useState, type SubmitEvent } from 'react'
+import { useEffect, useState, type SubmitEvent } from 'react'
 import { Button } from '@/components/ui/shadcn/button'
 import { Input } from '@/components/ui/shadcn/input'
 import { ButtonLink } from '@/components/ui/button-link'
 import { useLocation } from 'react-router-dom'
 import { useNavigate } from 'react-router-dom'
-import type { UserProfile } from '@/types/user'
 
 export default function LoginPage() {
   const navigate = useNavigate()
@@ -18,6 +17,37 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [checkingSession, setCheckingSession] = useState(true)
+
+  useEffect(() => {
+    const controller = new AbortController()
+
+    async function checkSession() {
+      try {
+        const response = await fetch('/api/me', {
+          credentials: 'include',
+          signal: controller.signal,
+        })
+
+        if (response.ok) {
+          navigate('/dashboard', { replace: true })
+        } else if (response.status !== 401) {
+          setError(`Could not check your session (HTTP ${response.status}).`)
+        }
+      } catch (err) {
+        if (!controller.signal.aborted) {
+          setError(err instanceof Error ? err.message : 'Could not check your session.')
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setCheckingSession(false)
+        }
+      }
+    }
+
+    void checkSession()
+    return () => controller.abort()
+  }, [navigate])
 
   async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -28,15 +58,14 @@ export default function LoginPage() {
       const response = await fetch('/api/login', {
         method: "POST",
         headers: { 'Content-Type' : 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({email, password})
       })
 
       if (!response.ok) {
         setError((await response.text()) || 'Login failed.')
       } else {
-        // Handle successful login - redirect to user dashboards.
-        const user: UserProfile = await response.json()
-        navigate('/dashboard', {state: {user}})
+        navigate('/dashboard', { replace: true })
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not connect to the server')
@@ -45,6 +74,14 @@ export default function LoginPage() {
     }
   }
   
+  if (checkingSession) {
+    return (
+      <main className="flex min-h-[calc(100vh-3.5rem)] items-center justify-center p-6">
+        <p role="status">Checking your session...</p>
+      </main>
+    )
+  }
+
   return (
     <main className='flex min-h-[calc(100vh-3.5rem)] items-center justify-center p-6'>
       <section className='w-full max-w-sm space-y-6'>
