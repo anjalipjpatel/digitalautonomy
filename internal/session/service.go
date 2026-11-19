@@ -3,6 +3,7 @@ package session
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -19,6 +20,7 @@ type Service struct {
 type sessionRepository interface {
 	Create(ctx context.Context, userID string) (string, *time.Time, error)
 	GetByToken(ctx context.Context, token string) (*session, error)
+	RevokeByToken(ctx context.Context, token string) error
 }
 
 func NewService(sessions sessionRepository) *Service {
@@ -59,5 +61,10 @@ func (s *Service) GetUserIDByToken(ctx context.Context, token string) (string, e
 	return session.userID, nil
 }
 
-// main.go: and register GET /me
-// fontend - check error message, if either message then display informative dialogue box
+func (s *Service) Revoke(ctx context.Context, token string) error {
+	err := s.sessions.RevokeByToken(ctx, token)
+	if err != nil {
+		return fmt.Errorf("failed to logout: %w", err)
+	}
+	return nil
+}
