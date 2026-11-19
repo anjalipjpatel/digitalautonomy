@@ -60,3 +60,11 @@ CREATE TABLE audits (
     ip_address VARCHAR(45),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+-- TOOD: mechanism for auto cleanup of sessions
+CREATE TABLE sessions (
+    token_hash BYTEA PRIMARY KEY,
+    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    expires_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    revoked BOOLEAN DEFAULT FALSE
+);
