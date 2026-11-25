@@ -13,6 +13,7 @@ import (
 
 	_ "digitalautonomy/docs"
 	"digitalautonomy/internal/api"
+	"digitalautonomy/internal/session"
 	"digitalautonomy/internal/user"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -48,14 +49,16 @@ func main() {
 	}
 
 	userService := user.NewService(user.NewRepository(pool))
-	userHandler := api.NewUserHandler(userService)
-	authHandler := api.NewAuthHandler(userService)
+	sessionService := session.NewService(session.NewRepository(pool))
+	userHandler := api.NewUserHandler(userService, sessionService)
+	authHandler := api.NewAuthHandler(userService, sessionService, os.Getenv("COOKIE_SECURE") == "true")
 
 	mux := http.NewServeMux()
 	mux.Handle("/swagger/", httpSwagger.WrapHandler) // For Swagger UI
 	mux.HandleFunc("/health", api.HealthHandler)
 	mux.HandleFunc("POST /users", userHandler.Create) // Creating new users
 	mux.HandleFunc("POST /login", authHandler.Login)  // Login mechanism
+	mux.HandleFunc("GET /me", userHandler.Me)         // Return current user
 
 	log.Println("Server running on port: " + port)
 	log.Fatal(http.ListenAndServe(":"+port, mux))
