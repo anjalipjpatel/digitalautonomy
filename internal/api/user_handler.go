@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"time"
 )
 
 type users interface {
@@ -16,6 +17,7 @@ type users interface {
 
 type sessionValidator interface {
 	GetUserIDByToken(ctx context.Context, token string) (string, error)
+	Revoke(ctx context.Context, token string) error
 }
 
 type createUserRequest struct {
@@ -28,12 +30,14 @@ type createUserRequest struct {
 type UserHandler struct {
 	users    users
 	sessions sessionValidator
+	secure   bool
 }
 
-func NewUserHandler(users users, sessions sessionValidator) *UserHandler {
+func NewUserHandler(users users, sessions sessionValidator, secureCookies bool) *UserHandler {
 	return &UserHandler{
 		users:    users,
 		sessions: sessions,
+		secure:   secureCookies,
 	}
 }
 
@@ -107,10 +111,45 @@ func (h *UserHandler) Me(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, "could not load user", http.StatusInternalServerError)
 		return
-		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(profile)
+}
+
+// Logout godoc
+// @Summary Logout user
+// @Description Logs out the current user session.
+// @Tags users
+// @Accept json
+// @Produce json
+// @Success 204 "Logged out"
+// @Failure 500 {string} string "Failed to revoke session"
+// @Router /logout [post]
+func (h *UserHandler) Logout(w http.ResponseWriter, r *http.Request) {
+	cookie, err := r.Cookie("session")
+	if err == nil && cookie.Value != "" {
+		if err := h.sessions.Revoke(r.Context(), cookie.Value); err != nil {
+			h.expireSessionCookie(w)
+			http.Error(w, "failed to logout", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	h.expireSessionCookie(w)
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *UserHandler) expireSessionCookie(w http.ResponseWriter) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     "session",
+		Value:    "",
+		Path:     "/",
+		Expires:  time.Unix(1, 0),
+		MaxAge:   -1,
+		HttpOnly: true,
+		Secure:   h.secure,
+		SameSite: http.SameSiteLaxMode,
+	})
 }

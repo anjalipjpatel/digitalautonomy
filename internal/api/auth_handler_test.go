@@ -46,6 +46,7 @@ func TestAuthHandlerLogin(t *testing.T) {
 		Name:  "Test Person",
 		Role:  user.RoleDelegate,
 	}
+
 	databaseErr := errors.New("database unavailable")
 
 	tests := []struct {

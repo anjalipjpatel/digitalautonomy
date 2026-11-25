@@ -22,6 +22,10 @@ func (repo *serviceStubRepository) GetByToken(context.Context, string) (*session
 	return repo.gotSession, repo.getErr
 }
 
+func (repo *serviceStubRepository) RevokeByToken(context.Context, string) error {
+	return nil
+}
+
 func TestGetUserIDByToken(t *testing.T) {
 	future := time.Now().Add(time.Hour)
 	past := time.Now().Add(-time.Hour)
