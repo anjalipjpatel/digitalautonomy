@@ -13,6 +13,7 @@ import (
 
 	_ "digitalautonomy/docs"
 	"digitalautonomy/internal/api"
+	"digitalautonomy/internal/delegation"
 	"digitalautonomy/internal/session"
 	"digitalautonomy/internal/user"
 
@@ -53,6 +54,8 @@ func main() {
 	secureCookies := os.Getenv("COOKIE_SECURE") == "true"
 	userHandler := api.NewUserHandler(userService, sessionService, secureCookies)
 	authHandler := api.NewAuthHandler(userService, sessionService, secureCookies)
+	delegationService := delegation.NewService(delegation.NewRepository(pool), userService)
+	delegationHandler := api.NewDelegationHandler(sessionService, delegationService)
 
 	mux := http.NewServeMux()
 	mux.Handle("/swagger/", httpSwagger.WrapHandler) // For Swagger UI
@@ -60,7 +63,8 @@ func main() {
 	mux.HandleFunc("POST /users", userHandler.Create) // Creating new users
 	mux.HandleFunc("POST /login", authHandler.Login)  // Login mechanism
 	mux.HandleFunc("POST /logout", userHandler.Logout)
-	mux.HandleFunc("GET /me", userHandler.Me) // Return current user
+	mux.HandleFunc("GET /me", userHandler.Me)                        // Return current user
+	mux.HandleFunc("POST /delegation-links", delegationHandler.Link) // Create link between two delegates
 
 	log.Println("Server running on port: " + port)
 	log.Fatal(http.ListenAndServe(":"+port, mux))

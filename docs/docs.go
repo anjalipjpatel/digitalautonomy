@@ -15,6 +15,76 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/delegation-links": {
+            "post": {
+                "description": "Creates a pending delegation link from the authenticated primary user to a delegate identified by email.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "delegation"
+                ],
+                "summary": "Create a delegation link",
+                "parameters": [
+                    {
+                        "description": "Delegate email, permissions, and optional expiry",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.createDelegationLinkRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Delegation link created",
+                        "schema": {
+                            "$ref": "#/definitions/delegation.Link"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or invalid session",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "User is not allowed to create delegation links",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Delegate not found",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "409": {
+                        "description": "Delegation link already exists",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Could not create delegation link",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "/health": {
             "get": {
                 "description": "Returns OK when the API is running.",
@@ -80,6 +150,32 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Could not log in",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/logout": {
+            "post": {
+                "description": "Logs out the current user session.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Logout user",
+                "responses": {
+                    "204": {
+                        "description": "Logged out"
+                    },
+                    "500": {
+                        "description": "Failed to revoke session",
                         "schema": {
                             "type": "string"
                         }
@@ -172,6 +268,27 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "api.createDelegationLinkRequest": {
+            "type": "object",
+            "required": [
+                "delegate_email",
+                "permissions"
+            ],
+            "properties": {
+                "delegate_email": {
+                    "type": "string"
+                },
+                "permissions": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "valid_until": {
+                    "type": "string"
+                }
+            }
+        },
         "api.createUserRequest": {
             "type": "object",
             "properties": {
@@ -196,6 +313,35 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "password": {
+                    "type": "string"
+                }
+            }
+        },
+        "delegation.Link": {
+            "type": "object",
+            "properties": {
+                "delegate_user_id": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "permissions": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "primary_user_id": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "valid_from": {
+                    "type": "string"
+                },
+                "valid_until": {
                     "type": "string"
                 }
             }

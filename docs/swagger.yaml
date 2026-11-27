@@ -1,5 +1,19 @@
 basePath: /
 definitions:
+  api.createDelegationLinkRequest:
+    properties:
+      delegate_email:
+        type: string
+      permissions:
+        items:
+          type: string
+        type: array
+      valid_until:
+        type: string
+    required:
+    - delegate_email
+    - permissions
+    type: object
   api.createUserRequest:
     properties:
       email:
@@ -16,6 +30,25 @@ definitions:
       email:
         type: string
       password:
+        type: string
+    type: object
+  delegation.Link:
+    properties:
+      delegate_user_id:
+        type: string
+      id:
+        type: string
+      permissions:
+        items:
+          type: string
+        type: array
+      primary_user_id:
+        type: string
+      status:
+        type: string
+      valid_from:
+        type: string
+      valid_until:
         type: string
     type: object
   user.Role:
@@ -47,6 +80,53 @@ info:
   title: Digital Autonomy API
   version: "1.0"
 paths:
+  /delegation-links:
+    post:
+      consumes:
+      - application/json
+      description: Creates a pending delegation link from the authenticated primary
+        user to a delegate identified by email.
+      parameters:
+      - description: Delegate email, permissions, and optional expiry
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.createDelegationLinkRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Delegation link created
+          schema:
+            $ref: '#/definitions/delegation.Link'
+        "400":
+          description: Invalid request
+          schema:
+            type: string
+        "401":
+          description: Missing or invalid session
+          schema:
+            type: string
+        "403":
+          description: User is not allowed to create delegation links
+          schema:
+            type: string
+        "404":
+          description: Delegate not found
+          schema:
+            type: string
+        "409":
+          description: Delegation link already exists
+          schema:
+            type: string
+        "500":
+          description: Could not create delegation link
+          schema:
+            type: string
+      summary: Create a delegation link
+      tags:
+      - delegation
   /health:
     get:
       description: Returns OK when the API is running.
@@ -94,6 +174,23 @@ paths:
       summary: Login to system
       tags:
       - auth
+  /logout:
+    post:
+      consumes:
+      - application/json
+      description: Logs out the current user session.
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: Logged out
+        "500":
+          description: Failed to revoke session
+          schema:
+            type: string
+      summary: Logout user
+      tags:
+      - users
   /me:
     get:
       produces:

@@ -94,3 +94,13 @@ func (s *Service) GetByID(ctx context.Context, userID string) (*User, error) {
 
 	return found, nil
 }
+
+func (s *Service) GetByEmail(ctx context.Context, email string) (*User, error) {
+	email = strings.ToLower(strings.TrimSpace(email))
+	found, err := s.users.GetByEmail(ctx, email)
+	if err != nil {
+		return nil, err
+	}
+
+	return &found.User, nil
+}
