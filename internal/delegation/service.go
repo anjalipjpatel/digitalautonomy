@@ -17,10 +17,13 @@ var (
 	ErrInvalidInput     = errors.New("invalid delegation link input")
 	ErrUnauthorized     = errors.New("user is not allowed to create delegation links")
 	ErrDelegateNotFound = errors.New("delegate user not found")
+	ErrLinkNotPending   = errors.New("delegation link is not pending or has expired")
 )
 
 type linkRepository interface {
 	Create(ctx context.Context, params CreateParams) (*Link, error)
+	GetPendingForDelegate(ctx context.Context, delegateUserID string) ([]Link, error)
+	Accept(ctx context.Context, delegateUserID, linkID string) (*Link, error)
 }
 
 type userLookup interface {
@@ -92,4 +95,45 @@ func (s *Service) Create(ctx context.Context, primaryUserID string, params Creat
 	params.DelegateUserID = delegate.ID
 	params.Permissions = permissions
 	return s.links.Create(ctx, params)
+}
+
+func (s *Service) GetPendingForDelegate(ctx context.Context, delegateUserID string) ([]Link, error) {
+	delegate, err := s.users.GetByID(ctx, delegateUserID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrUnauthorized
+		}
+		return nil, fmt.Errorf("looking up delegate user: %w", err)
+	}
+	if delegate.Role != user.RoleDelegate {
+		return nil, ErrUnauthorized
+	}
+
+	return s.links.GetPendingForDelegate(ctx, delegateUserID)
+}
+
+func (s *Service) Accept(ctx context.Context, delegateUserID, linkID string) (*Link, error) {
+	if strings.TrimSpace(linkID) == "" {
+		return nil, ErrInvalidInput
+	}
+
+	delegate, err := s.users.GetByID(ctx, delegateUserID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrUnauthorized
+		}
+		return nil, fmt.Errorf("looking up delegate user: %w", err)
+	}
+	if delegate.Role != user.RoleDelegate {
+		return nil, ErrUnauthorized
+	}
+
+	link, err := s.links.Accept(ctx, delegateUserID, linkID)
+	if errors.Is(err, ErrLinkNotFound) {
+		return nil, ErrLinkNotPending
+	}
+	if err != nil {
+		return nil, err
+	}
+	return link, nil
 }

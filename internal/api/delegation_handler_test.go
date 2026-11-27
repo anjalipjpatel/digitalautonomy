@@ -26,17 +26,31 @@ func (s *delegationTestSessions) GetUserIDByToken(_ context.Context, token strin
 func (*delegationTestSessions) Revoke(context.Context, string) error { return nil }
 
 type delegationTestCreator struct {
-	primaryID string
-	params    delegation.CreateParams
-	link      *delegation.Link
-	err       error
-	calls     int
+	primaryID  string
+	params     delegation.CreateParams
+	link       *delegation.Link
+	err        error
+	calls      int
+	pending    []delegation.Link
+	delegateID string
+	linkID     string
 }
 
 func (d *delegationTestCreator) Create(_ context.Context, primaryID string, params delegation.CreateParams) (*delegation.Link, error) {
 	d.calls++
 	d.primaryID = primaryID
 	d.params = params
+	return d.link, d.err
+}
+
+func (d *delegationTestCreator) GetPendingForDelegate(_ context.Context, delegateID string) ([]delegation.Link, error) {
+	d.delegateID = delegateID
+	return d.pending, d.err
+}
+
+func (d *delegationTestCreator) Accept(_ context.Context, delegateID, linkID string) (*delegation.Link, error) {
+	d.delegateID = delegateID
+	d.linkID = linkID
 	return d.link, d.err
 }
 
@@ -172,6 +186,52 @@ func TestDelegationHandlerLink(t *testing.T) {
 
 		if recorder.Code != http.StatusConflict {
 			t.Errorf("status = %d, want %d", recorder.Code, http.StatusConflict)
+		}
+	})
+
+	t.Run("lists pending links for authenticated delegate", func(t *testing.T) {
+		pending := []delegation.Link{{ID: "link-id", Status: "pending"}}
+		sessions := &delegationTestSessions{userID: "delegate"}
+		links := &delegationTestCreator{pending: pending}
+		handler := NewDelegationHandler(sessions, links)
+		request := httptest.NewRequest(http.MethodGet, "/delegation-links/pending", nil)
+		request.AddCookie(&http.Cookie{Name: "session", Value: "valid"})
+		recorder := httptest.NewRecorder()
+
+		handler.Pending(recorder, request)
+
+		if recorder.Code != http.StatusOK {
+			t.Fatalf("status = %d, want %d; body=%q", recorder.Code, http.StatusOK, recorder.Body.String())
+		}
+		if links.delegateID != "delegate" {
+			t.Errorf("delegate ID = %q, want authenticated user ID", links.delegateID)
+		}
+		var got []delegation.Link
+		if err := json.Unmarshal(recorder.Body.Bytes(), &got); err != nil {
+			t.Fatalf("response is not valid JSON: %v", err)
+		}
+		if len(got) != 1 || got[0].ID != pending[0].ID {
+			t.Errorf("response links = %#v, want %#v", got, pending)
+		}
+	})
+
+	t.Run("accepts pending link for authenticated delegate", func(t *testing.T) {
+		accepted := &delegation.Link{ID: "link-id", Status: "active"}
+		sessions := &delegationTestSessions{userID: "delegate"}
+		links := &delegationTestCreator{link: accepted}
+		handler := NewDelegationHandler(sessions, links)
+		request := httptest.NewRequest(http.MethodPost, "/delegation-links/link-id/accept", nil)
+		request.SetPathValue("id", "link-id")
+		request.AddCookie(&http.Cookie{Name: "session", Value: "valid"})
+		recorder := httptest.NewRecorder()
+
+		handler.Accept(recorder, request)
+
+		if recorder.Code != http.StatusOK {
+			t.Fatalf("status = %d, want %d; body=%q", recorder.Code, http.StatusOK, recorder.Body.String())
+		}
+		if links.delegateID != "delegate" || links.linkID != "link-id" {
+			t.Errorf("accept args = (%q, %q), want (delegate, link-id)", links.delegateID, links.linkID)
 		}
 	})
 }

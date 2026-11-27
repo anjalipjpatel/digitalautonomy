@@ -9,6 +9,13 @@ interface CreatedDelegationLink {
   status: string
 }
 
+interface PendingDelegationLink {
+  id: string
+  primary_user_id: string
+  valid_until?: string
+  permissions: string[]
+}
+
 export default function DashboardPage() {
   const navigate = useNavigate()
   const [user, setUser] = useState<UserProfile | null>(null)
@@ -20,6 +27,10 @@ export default function DashboardPage() {
   const [submitting, setSubmitting] = useState(false)
   const [delegationError, setDelegationError] = useState('')
   const [createdLink, setCreatedLink] = useState<CreatedDelegationLink | null>(null)
+  const [pendingLinks, setPendingLinks] = useState<PendingDelegationLink[]>([])
+  const [pendingLinksError, setPendingLinksError] = useState('')
+  const [acceptingLinkID, setAcceptingLinkID] = useState('')
+  const [acceptedMessage, setAcceptedMessage] = useState('')
 
   useEffect(() => {
     const controller = new AbortController()
@@ -42,6 +53,24 @@ export default function DashboardPage() {
 
         const profile: UserProfile = await response.json()
         setUser(profile)
+        if (profile.Role === USER_ROLES.DELEGATE) {
+          try {
+            const linksResponse = await fetch('/api/delegation-links/pending', {
+              credentials: 'include',
+              signal: controller.signal,
+            })
+            if (!linksResponse.ok) {
+              const message = (await linksResponse.text()).trim()
+              setPendingLinksError(message || `Could not load pending invitations (HTTP ${linksResponse.status}).`)
+            } else {
+              setPendingLinks(await linksResponse.json())
+            }
+          } catch (err) {
+            if (!controller.signal.aborted) {
+              setPendingLinksError(err instanceof Error ? err.message : 'Could not load pending invitations.')
+            }
+          }
+        }
       } catch (err) {
         if (!controller.signal.aborted) {
           setError(err instanceof Error ? err.message : 'Could not load your profile.')
@@ -107,6 +136,31 @@ export default function DashboardPage() {
       setDelegationError(err instanceof Error ? err.message : 'Could not connect to the server.')
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  async function acceptDelegationLink(linkID: string) {
+    setPendingLinksError('')
+    setAcceptedMessage('')
+    setAcceptingLinkID(linkID)
+
+    try {
+      const response = await fetch(`/api/delegation-links/${encodeURIComponent(linkID)}/accept`, {
+        method: 'POST',
+        credentials: 'include',
+      })
+      if (!response.ok) {
+        const message = (await response.text()).trim()
+        setPendingLinksError(message || `Could not accept invitation (HTTP ${response.status}).`)
+        return
+      }
+
+      setPendingLinks((links) => links.filter((link) => link.id !== linkID))
+      setAcceptedMessage('Delegation accepted.')
+    } catch (err) {
+      setPendingLinksError(err instanceof Error ? err.message : 'Could not connect to the server.')
+    } finally {
+      setAcceptingLinkID('')
     }
   }
 
@@ -186,6 +240,47 @@ export default function DashboardPage() {
               </p>
             )}
           </form>
+        </section>
+      )}
+
+      {user.Role === USER_ROLES.DELEGATE && (
+        <section className="space-y-4 rounded-lg border p-6">
+          <div className="space-y-1">
+            <h2 className="text-xl font-semibold">Pending delegation invitations</h2>
+            <p className="text-sm text-muted-foreground">
+              Accept an invitation to activate the permissions granted by the primary user.
+            </p>
+          </div>
+
+          {pendingLinksError && <p role="alert" className="text-sm text-destructive">{pendingLinksError}</p>}
+          {acceptedMessage && <p role="status" className="text-sm text-green-700 dark:text-green-400">{acceptedMessage}</p>}
+          {pendingLinks.length === 0 ? (
+            <p className="text-sm text-muted-foreground">You have no pending invitations.</p>
+          ) : (
+            <ul className="space-y-4">
+              {pendingLinks.map((link) => (
+                <li key={link.id} className="space-y-3 rounded-md border p-4">
+                  <dl className="space-y-1 text-sm">
+                    <div><dt className="inline font-medium">Primary user ID: </dt><dd className="inline">{link.primary_user_id}</dd></div>
+                    <div><dt className="inline font-medium">Permissions: </dt><dd className="inline">{link.permissions.join(', ')}</dd></div>
+                    <div>
+                      <dt className="inline font-medium">Expires: </dt>
+                      <dd className="inline">
+                        {link.valid_until ? new Date(link.valid_until).toLocaleString() : 'No expiry'}
+                      </dd>
+                    </div>
+                  </dl>
+                  <Button
+                    type="button"
+                    disabled={acceptingLinkID !== ''}
+                    onClick={() => void acceptDelegationLink(link.id)}
+                  >
+                    {acceptingLinkID === link.id ? 'Accepting...' : 'Accept invitation'}
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
       )}
     </main>

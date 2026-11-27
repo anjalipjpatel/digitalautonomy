@@ -85,6 +85,112 @@ const docTemplate = `{
                 }
             }
         },
+        "/delegation-links/pending": {
+            "get": {
+                "description": "Lists unexpired pending links addressed to the authenticated delegate.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "delegation"
+                ],
+                "summary": "List pending delegation links",
+                "responses": {
+                    "200": {
+                        "description": "Pending delegation links",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/delegation.Link"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or invalid session",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "User is not a delegate",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Could not load pending links",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/delegation-links/{id}/accept": {
+            "post": {
+                "description": "Accepts an unexpired pending delegation link belonging to the authenticated delegate.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "delegation"
+                ],
+                "summary": "Accept a delegation link",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Delegation link ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Delegation link accepted",
+                        "schema": {
+                            "$ref": "#/definitions/delegation.Link"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid link ID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or invalid session",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "User is not a delegate",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Pending link not found",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "409": {
+                        "description": "Link is no longer pending or has expired",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Could not accept delegation link",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "/health": {
             "get": {
                 "description": "Returns OK when the API is running.",

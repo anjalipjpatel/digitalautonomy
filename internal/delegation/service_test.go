@@ -40,15 +40,29 @@ func (s serviceTestUsers) GetByEmail(_ context.Context, email string) (*user.Use
 }
 
 type serviceTestLinks struct {
-	params CreateParams
-	link   *Link
-	err    error
-	calls  int
+	params             CreateParams
+	link               *Link
+	err                error
+	calls              int
+	pending            []Link
+	acceptedDelegateID string
+	acceptedLinkID     string
 }
 
 func (s *serviceTestLinks) Create(_ context.Context, params CreateParams) (*Link, error) {
 	s.calls++
 	s.params = params
+	return s.link, s.err
+}
+
+func (s *serviceTestLinks) GetPendingForDelegate(_ context.Context, delegateUserID string) ([]Link, error) {
+	s.acceptedDelegateID = delegateUserID
+	return s.pending, s.err
+}
+
+func (s *serviceTestLinks) Accept(_ context.Context, delegateUserID, linkID string) (*Link, error) {
+	s.acceptedDelegateID = delegateUserID
+	s.acceptedLinkID = linkID
 	return s.link, s.err
 }
 
@@ -212,4 +226,41 @@ func TestServiceCreate(t *testing.T) {
 
 func timePtr(value time.Time) *time.Time {
 	return &value
+}
+
+func TestServiceGetPendingForDelegate(t *testing.T) {
+	delegate := &user.User{ID: "delegate-id", Role: user.RoleDelegate}
+	pending := []Link{{ID: "link-id", DelegateUserID: delegate.ID, Status: "pending"}}
+	links := &serviceTestLinks{pending: pending}
+	service := NewService(links, serviceTestUsers{users: map[string]*user.User{delegate.ID: delegate}})
+
+	got, err := service.GetPendingForDelegate(context.Background(), delegate.ID)
+	if err != nil {
+		t.Fatalf("GetPendingForDelegate() error = %v", err)
+	}
+	if len(got) != 1 || got[0].ID != pending[0].ID {
+		t.Fatalf("GetPendingForDelegate() = %#v, want %#v", got, pending)
+	}
+	if links.acceptedDelegateID != delegate.ID {
+		t.Errorf("delegate ID = %q, want %q", links.acceptedDelegateID, delegate.ID)
+	}
+}
+
+func TestServiceAccept(t *testing.T) {
+	delegate := &user.User{ID: "delegate-id", Role: user.RoleDelegate}
+	expected := &Link{ID: "link-id", DelegateUserID: delegate.ID, Status: "active"}
+	links := &serviceTestLinks{link: expected}
+	service := NewService(links, serviceTestUsers{users: map[string]*user.User{delegate.ID: delegate}})
+
+	got, err := service.Accept(context.Background(), delegate.ID, expected.ID)
+	if err != nil {
+		t.Fatalf("Accept() error = %v", err)
+	}
+	if got != expected {
+		t.Errorf("Accept() = %#v, want %#v", got, expected)
+	}
+	if links.acceptedDelegateID != delegate.ID || links.acceptedLinkID != expected.ID {
+		t.Errorf("repository accept args = (%q, %q), want (%q, %q)",
+			links.acceptedDelegateID, links.acceptedLinkID, delegate.ID, expected.ID)
+	}
 }

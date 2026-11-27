@@ -63,8 +63,10 @@ func main() {
 	mux.HandleFunc("POST /users", userHandler.Create) // Creating new users
 	mux.HandleFunc("POST /login", authHandler.Login)  // Login mechanism
 	mux.HandleFunc("POST /logout", userHandler.Logout)
-	mux.HandleFunc("GET /me", userHandler.Me)                        // Return current user
-	mux.HandleFunc("POST /delegation-links", delegationHandler.Link) // Create link between two delegates
+	mux.HandleFunc("GET /me", userHandler.Me) // Return current user
+	mux.HandleFunc("POST /delegation-links", delegationHandler.Link)
+	mux.HandleFunc("GET /delegation-links/pending", delegationHandler.Pending)
+	mux.HandleFunc("POST /delegation-links/{id}/accept", delegationHandler.Accept)
 
 	log.Println("Server running on port: " + port)
 	log.Fatal(http.ListenAndServe(":"+port, mux))
