@@ -7,8 +7,8 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 -- Types
 CREATE TYPE user_role AS ENUM ('vulnerable_owner', 'delegate', 'admin');
+CREATE TYPE delegation_status AS ENUM ('pending', 'active', 'expired', 'revoked');
 CREATE TYPE payment_status AS ENUM ('pending_review', 'approved', 'denied', 'executed', 'failed');
-
 
 -- Tables
 CREATE TABLE users (
@@ -22,11 +22,13 @@ CREATE TABLE users (
 
 CREATE TABLE delegation_links (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    owner_id UUID REFERENCES users(id) ON DELETE CASCADE,
-    delegate_id UUID REFERENCES users(id) ON DELETE CASCADE,
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT unique_delegation UNIQUE (owner_id, delegate_id)
+    primary_user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    delegate_user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    valid_from TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    valid_until TIMESTAMP WITH TIME ZONE,
+    status delegation_status,
+    permissions TEXT[] NOT NULL DEFAULT '{}',
+    CONSTRAINT unique_delegation UNIQUE (primary_user_id, delegate_user_id)
 );
 
 CREATE TABLE bank_accounts (
