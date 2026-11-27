@@ -1,5 +1,19 @@
 basePath: /
 definitions:
+  api.createDelegationLinkRequest:
+    properties:
+      delegate_email:
+        type: string
+      permissions:
+        items:
+          type: string
+        type: array
+      valid_until:
+        type: string
+    required:
+    - delegate_email
+    - permissions
+    type: object
   api.createUserRequest:
     properties:
       email:
@@ -16,6 +30,25 @@ definitions:
       email:
         type: string
       password:
+        type: string
+    type: object
+  delegation.Link:
+    properties:
+      delegate_user_id:
+        type: string
+      id:
+        type: string
+      permissions:
+        items:
+          type: string
+        type: array
+      primary_user_id:
+        type: string
+      status:
+        type: string
+      valid_from:
+        type: string
+      valid_until:
         type: string
     type: object
   user.Role:
@@ -47,6 +80,151 @@ info:
   title: Digital Autonomy API
   version: "1.0"
 paths:
+  /delegation-links:
+    get:
+      description: Lists delegation links where the authenticated user is the primary
+        user or delegate.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Delegation links
+          schema:
+            items:
+              $ref: '#/definitions/delegation.Link'
+            type: array
+        "401":
+          description: Missing or invalid session
+          schema:
+            type: string
+        "403":
+          description: User is not allowed to view delegation links
+          schema:
+            type: string
+        "500":
+          description: Could not load delegation links
+          schema:
+            type: string
+      summary: List delegation links
+      tags:
+      - delegation
+    post:
+      consumes:
+      - application/json
+      description: Creates a pending delegation link from the authenticated primary
+        user to a delegate identified by email.
+      parameters:
+      - description: Delegate email, permissions, and optional expiry
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.createDelegationLinkRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Delegation link created
+          schema:
+            $ref: '#/definitions/delegation.Link'
+        "400":
+          description: Invalid request
+          schema:
+            type: string
+        "401":
+          description: Missing or invalid session
+          schema:
+            type: string
+        "403":
+          description: User is not allowed to create delegation links
+          schema:
+            type: string
+        "404":
+          description: Delegate not found
+          schema:
+            type: string
+        "409":
+          description: Delegation link already exists
+          schema:
+            type: string
+        "500":
+          description: Could not create delegation link
+          schema:
+            type: string
+      summary: Create a delegation link
+      tags:
+      - delegation
+  /delegation-links/{id}/accept:
+    post:
+      description: Accepts an unexpired pending delegation link belonging to the authenticated
+        delegate.
+      parameters:
+      - description: Delegation link ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Delegation link accepted
+          schema:
+            $ref: '#/definitions/delegation.Link'
+        "400":
+          description: Invalid link ID
+          schema:
+            type: string
+        "401":
+          description: Missing or invalid session
+          schema:
+            type: string
+        "403":
+          description: User is not a delegate
+          schema:
+            type: string
+        "404":
+          description: Pending link not found
+          schema:
+            type: string
+        "409":
+          description: Link is no longer pending or has expired
+          schema:
+            type: string
+        "500":
+          description: Could not accept delegation link
+          schema:
+            type: string
+      summary: Accept a delegation link
+      tags:
+      - delegation
+  /delegation-links/pending:
+    get:
+      description: Lists unexpired pending links addressed to the authenticated delegate.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Pending delegation links
+          schema:
+            items:
+              $ref: '#/definitions/delegation.Link'
+            type: array
+        "401":
+          description: Missing or invalid session
+          schema:
+            type: string
+        "403":
+          description: User is not a delegate
+          schema:
+            type: string
+        "500":
+          description: Could not load pending links
+          schema:
+            type: string
+      summary: List pending delegation links
+      tags:
+      - delegation
   /health:
     get:
       description: Returns OK when the API is running.
@@ -94,6 +272,23 @@ paths:
       summary: Login to system
       tags:
       - auth
+  /logout:
+    post:
+      consumes:
+      - application/json
+      description: Logs out the current user session.
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: Logged out
+        "500":
+          description: Failed to revoke session
+          schema:
+            type: string
+      summary: Logout user
+      tags:
+      - users
   /me:
     get:
       produces:

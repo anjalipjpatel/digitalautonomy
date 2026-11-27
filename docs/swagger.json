@@ -8,6 +8,221 @@
     },
     "basePath": "/",
     "paths": {
+        "/delegation-links": {
+            "get": {
+                "description": "Lists delegation links where the authenticated user is the primary user or delegate.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "delegation"
+                ],
+                "summary": "List delegation links",
+                "responses": {
+                    "200": {
+                        "description": "Delegation links",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/delegation.Link"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or invalid session",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "User is not allowed to view delegation links",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Could not load delegation links",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Creates a pending delegation link from the authenticated primary user to a delegate identified by email.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "delegation"
+                ],
+                "summary": "Create a delegation link",
+                "parameters": [
+                    {
+                        "description": "Delegate email, permissions, and optional expiry",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.createDelegationLinkRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Delegation link created",
+                        "schema": {
+                            "$ref": "#/definitions/delegation.Link"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or invalid session",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "User is not allowed to create delegation links",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Delegate not found",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "409": {
+                        "description": "Delegation link already exists",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Could not create delegation link",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/delegation-links/pending": {
+            "get": {
+                "description": "Lists unexpired pending links addressed to the authenticated delegate.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "delegation"
+                ],
+                "summary": "List pending delegation links",
+                "responses": {
+                    "200": {
+                        "description": "Pending delegation links",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/delegation.Link"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or invalid session",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "User is not a delegate",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Could not load pending links",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/delegation-links/{id}/accept": {
+            "post": {
+                "description": "Accepts an unexpired pending delegation link belonging to the authenticated delegate.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "delegation"
+                ],
+                "summary": "Accept a delegation link",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Delegation link ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Delegation link accepted",
+                        "schema": {
+                            "$ref": "#/definitions/delegation.Link"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid link ID",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or invalid session",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "User is not a delegate",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Pending link not found",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "409": {
+                        "description": "Link is no longer pending or has expired",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Could not accept delegation link",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "/health": {
             "get": {
                 "description": "Returns OK when the API is running.",
@@ -73,6 +288,32 @@
                     },
                     "500": {
                         "description": "Could not log in",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/logout": {
+            "post": {
+                "description": "Logs out the current user session.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Logout user",
+                "responses": {
+                    "204": {
+                        "description": "Logged out"
+                    },
+                    "500": {
+                        "description": "Failed to revoke session",
                         "schema": {
                             "type": "string"
                         }
@@ -165,6 +406,27 @@
         }
     },
     "definitions": {
+        "api.createDelegationLinkRequest": {
+            "type": "object",
+            "required": [
+                "delegate_email",
+                "permissions"
+            ],
+            "properties": {
+                "delegate_email": {
+                    "type": "string"
+                },
+                "permissions": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "valid_until": {
+                    "type": "string"
+                }
+            }
+        },
         "api.createUserRequest": {
             "type": "object",
             "properties": {
@@ -189,6 +451,35 @@
                     "type": "string"
                 },
                 "password": {
+                    "type": "string"
+                }
+            }
+        },
+        "delegation.Link": {
+            "type": "object",
+            "properties": {
+                "delegate_user_id": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "permissions": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "primary_user_id": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "valid_from": {
+                    "type": "string"
+                },
+                "valid_until": {
                     "type": "string"
                 }
             }
