@@ -22,6 +22,7 @@ var (
 
 type linkRepository interface {
 	Create(ctx context.Context, params CreateParams) (*Link, error)
+	GetForUser(ctx context.Context, userID string) ([]Link, error)
 	GetPendingForDelegate(ctx context.Context, delegateUserID string) ([]Link, error)
 	Accept(ctx context.Context, delegateUserID, linkID string) (*Link, error)
 }
@@ -110,6 +111,21 @@ func (s *Service) GetPendingForDelegate(ctx context.Context, delegateUserID stri
 	}
 
 	return s.links.GetPendingForDelegate(ctx, delegateUserID)
+}
+
+func (s *Service) GetForUser(ctx context.Context, userID string) ([]Link, error) {
+	requestor, err := s.users.GetByID(ctx, userID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrUnauthorized
+		}
+		return nil, fmt.Errorf("looking up delegation link requestor: %w", err)
+	}
+	if requestor.Role != user.RoleVulnerableOwner && requestor.Role != user.RoleDelegate {
+		return nil, ErrUnauthorized
+	}
+
+	return s.links.GetForUser(ctx, userID)
 }
 
 func (s *Service) Accept(ctx context.Context, delegateUserID, linkID string) (*Link, error) {

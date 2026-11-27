@@ -9,6 +9,45 @@
     "basePath": "/",
     "paths": {
         "/delegation-links": {
+            "get": {
+                "description": "Lists delegation links where the authenticated user is the primary user or delegate.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "delegation"
+                ],
+                "summary": "List delegation links",
+                "responses": {
+                    "200": {
+                        "description": "Delegation links",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/delegation.Link"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or invalid session",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "User is not allowed to view delegation links",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Could not load delegation links",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
             "post": {
                 "description": "Creates a pending delegation link from the authenticated primary user to a delegate identified by email.",
                 "consumes": [

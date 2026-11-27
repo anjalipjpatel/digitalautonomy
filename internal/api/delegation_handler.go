@@ -13,6 +13,7 @@ import (
 
 type delegationCreator interface {
 	Create(ctx context.Context, primaryUserID string, params delegation.CreateParams) (*delegation.Link, error)
+	GetForUser(ctx context.Context, userID string) ([]delegation.Link, error)
 	GetPendingForDelegate(ctx context.Context, delegateUserID string) ([]delegation.Link, error)
 	Accept(ctx context.Context, delegateUserID, linkID string) (*delegation.Link, error)
 }
@@ -95,6 +96,37 @@ func (h *DelegationHandler) Link(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	_ = json.NewEncoder(w).Encode(created)
+}
+
+// List godoc
+// @Summary List delegation links
+// @Description Lists delegation links where the authenticated user is the primary user or delegate.
+// @Tags delegation
+// @Produce json
+// @Success 200 {array} delegation.Link "Delegation links"
+// @Failure 401 {string} string "Missing or invalid session"
+// @Failure 403 {string} string "User is not allowed to view delegation links"
+// @Failure 500 {string} string "Could not load delegation links"
+// @Router /delegation-links [get]
+func (h *DelegationHandler) List(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.authenticatedUserID(w, r)
+	if !ok {
+		return
+	}
+
+	links, err := h.links.GetForUser(r.Context(), userID)
+	switch {
+	case errors.Is(err, delegation.ErrUnauthorized):
+		http.Error(w, "user is not allowed to view delegation links", http.StatusForbidden)
+		return
+	case err != nil:
+		http.Error(w, "could not load delegation links", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(links)
 }
 
 // Pending godoc

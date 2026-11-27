@@ -45,6 +45,8 @@ type serviceTestLinks struct {
 	err                error
 	calls              int
 	pending            []Link
+	userLinks          []Link
+	listedUserID       string
 	acceptedDelegateID string
 	acceptedLinkID     string
 }
@@ -58,6 +60,11 @@ func (s *serviceTestLinks) Create(_ context.Context, params CreateParams) (*Link
 func (s *serviceTestLinks) GetPendingForDelegate(_ context.Context, delegateUserID string) ([]Link, error) {
 	s.acceptedDelegateID = delegateUserID
 	return s.pending, s.err
+}
+
+func (s *serviceTestLinks) GetForUser(_ context.Context, userID string) ([]Link, error) {
+	s.listedUserID = userID
+	return s.userLinks, s.err
 }
 
 func (s *serviceTestLinks) Accept(_ context.Context, delegateUserID, linkID string) (*Link, error) {
@@ -244,6 +251,40 @@ func TestServiceGetPendingForDelegate(t *testing.T) {
 	if links.acceptedDelegateID != delegate.ID {
 		t.Errorf("delegate ID = %q, want %q", links.acceptedDelegateID, delegate.ID)
 	}
+}
+
+func TestServiceGetForUser(t *testing.T) {
+	for _, role := range []user.Role{user.RoleVulnerableOwner, user.RoleDelegate} {
+		t.Run(string(role), func(t *testing.T) {
+			account := &user.User{ID: "user-id", Role: role}
+			expected := []Link{{ID: "link-id"}}
+			links := &serviceTestLinks{userLinks: expected}
+			service := NewService(links, serviceTestUsers{users: map[string]*user.User{account.ID: account}})
+
+			got, err := service.GetForUser(context.Background(), account.ID)
+			if err != nil {
+				t.Fatalf("GetForUser() error = %v", err)
+			}
+			if len(got) != 1 || got[0].ID != expected[0].ID {
+				t.Fatalf("GetForUser() = %#v, want %#v", got, expected)
+			}
+			if links.listedUserID != account.ID {
+				t.Errorf("repository user ID = %q, want %q", links.listedUserID, account.ID)
+			}
+		})
+	}
+
+	t.Run("forbids admin", func(t *testing.T) {
+		admin := &user.User{ID: "admin-id", Role: user.RoleAdmin}
+		links := &serviceTestLinks{}
+		service := NewService(links, serviceTestUsers{users: map[string]*user.User{admin.ID: admin}})
+		if _, err := service.GetForUser(context.Background(), admin.ID); !errors.Is(err, ErrUnauthorized) {
+			t.Fatalf("GetForUser() error = %v, want %v", err, ErrUnauthorized)
+		}
+		if links.listedUserID != "" {
+			t.Errorf("repository should not be called for admin")
+		}
+	})
 }
 
 func TestServiceAccept(t *testing.T) {

@@ -65,6 +65,7 @@ func main() {
 	mux.HandleFunc("POST /logout", userHandler.Logout)
 	mux.HandleFunc("GET /me", userHandler.Me) // Return current user
 	mux.HandleFunc("POST /delegation-links", delegationHandler.Link)
+	mux.HandleFunc("GET /delegation-links", delegationHandler.List)
 	mux.HandleFunc("GET /delegation-links/pending", delegationHandler.Pending)
 	mux.HandleFunc("POST /delegation-links/{id}/accept", delegationHandler.Accept)
 

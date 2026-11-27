@@ -81,6 +81,33 @@ info:
   version: "1.0"
 paths:
   /delegation-links:
+    get:
+      description: Lists delegation links where the authenticated user is the primary
+        user or delegate.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Delegation links
+          schema:
+            items:
+              $ref: '#/definitions/delegation.Link'
+            type: array
+        "401":
+          description: Missing or invalid session
+          schema:
+            type: string
+        "403":
+          description: User is not allowed to view delegation links
+          schema:
+            type: string
+        "500":
+          description: Could not load delegation links
+          schema:
+            type: string
+      summary: List delegation links
+      tags:
+      - delegation
     post:
       consumes:
       - application/json

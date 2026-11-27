@@ -16,6 +16,9 @@ var queryCreateDelegationLink string
 //go:embed queries/get_pending_delegation_links.sql
 var queryGetPendingDelegationLinks string
 
+//go:embed queries/get_delegation_links_for_user.sql
+var queryGetDelegationLinksForUser string
+
 //go:embed queries/accept_delegation_link.sql
 var queryAcceptDelegationLink string
 
@@ -87,6 +90,29 @@ func (r *Repository) GetPendingForDelegate(ctx context.Context, delegateUserID s
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("iterating pending delegation links: %w", err)
+	}
+	return links, nil
+}
+
+func (r *Repository) GetForUser(ctx context.Context, userID string) ([]Link, error) {
+	rows, err := r.db.Query(ctx, queryGetDelegationLinksForUser, pgx.NamedArgs{
+		"user_id": userID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("querying delegation links for user: %w", err)
+	}
+	defer rows.Close()
+
+	links := make([]Link, 0)
+	for rows.Next() {
+		link, err := scanLink(rows)
+		if err != nil {
+			return nil, fmt.Errorf("scanning delegation link: %w", err)
+		}
+		links = append(links, link)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating delegation links: %w", err)
 	}
 	return links, nil
 }

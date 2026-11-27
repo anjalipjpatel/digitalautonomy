@@ -4,16 +4,13 @@ import { Input } from '@/components/ui/shadcn/input'
 import { useNavigate } from 'react-router-dom'
 import { USER_ROLES, type UserProfile } from '@/types/user'
 
-interface CreatedDelegationLink {
-  id: string
-  status: string
-}
-
-interface PendingDelegationLink {
+interface DelegationLink {
   id: string
   primary_user_id: string
+  delegate_user_id: string
   valid_until?: string
   permissions: string[]
+  status: string
 }
 
 export default function DashboardPage() {
@@ -26,9 +23,9 @@ export default function DashboardPage() {
   const [validUntil, setValidUntil] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [delegationError, setDelegationError] = useState('')
-  const [createdLink, setCreatedLink] = useState<CreatedDelegationLink | null>(null)
-  const [pendingLinks, setPendingLinks] = useState<PendingDelegationLink[]>([])
-  const [pendingLinksError, setPendingLinksError] = useState('')
+  const [createdLink, setCreatedLink] = useState<DelegationLink | null>(null)
+  const [delegationLinks, setDelegationLinks] = useState<DelegationLink[]>([])
+  const [delegationLinksError, setDelegationLinksError] = useState('')
   const [acceptingLinkID, setAcceptingLinkID] = useState('')
   const [acceptedMessage, setAcceptedMessage] = useState('')
 
@@ -53,21 +50,21 @@ export default function DashboardPage() {
 
         const profile: UserProfile = await response.json()
         setUser(profile)
-        if (profile.Role === USER_ROLES.DELEGATE) {
+        if (profile.Role === USER_ROLES.DELEGATE || profile.Role === USER_ROLES.OWNER) {
           try {
-            const linksResponse = await fetch('/api/delegation-links/pending', {
+            const linksResponse = await fetch('/api/delegation-links', {
               credentials: 'include',
               signal: controller.signal,
             })
             if (!linksResponse.ok) {
               const message = (await linksResponse.text()).trim()
-              setPendingLinksError(message || `Could not load pending invitations (HTTP ${linksResponse.status}).`)
+              setDelegationLinksError(message || `Could not load delegation links (HTTP ${linksResponse.status}).`)
             } else {
-              setPendingLinks(await linksResponse.json())
+              setDelegationLinks(await linksResponse.json())
             }
           } catch (err) {
             if (!controller.signal.aborted) {
-              setPendingLinksError(err instanceof Error ? err.message : 'Could not load pending invitations.')
+              setDelegationLinksError(err instanceof Error ? err.message : 'Could not load delegation links.')
             }
           }
         }
@@ -127,8 +124,9 @@ export default function DashboardPage() {
         return
       }
 
-      const link: CreatedDelegationLink = await response.json()
+      const link: DelegationLink = await response.json()
       setCreatedLink(link)
+      setDelegationLinks((links) => [link, ...links])
       setDelegateEmail('')
       setPermissionsInput('')
       setValidUntil('')
@@ -140,7 +138,7 @@ export default function DashboardPage() {
   }
 
   async function acceptDelegationLink(linkID: string) {
-    setPendingLinksError('')
+    setDelegationLinksError('')
     setAcceptedMessage('')
     setAcceptingLinkID(linkID)
 
@@ -151,14 +149,15 @@ export default function DashboardPage() {
       })
       if (!response.ok) {
         const message = (await response.text()).trim()
-        setPendingLinksError(message || `Could not accept invitation (HTTP ${response.status}).`)
+        setDelegationLinksError(message || `Could not accept invitation (HTTP ${response.status}).`)
         return
       }
 
-      setPendingLinks((links) => links.filter((link) => link.id !== linkID))
+      const acceptedLink: DelegationLink = await response.json()
+      setDelegationLinks((links) => links.map((link) => link.id === linkID ? acceptedLink : link))
       setAcceptedMessage('Delegation accepted.')
     } catch (err) {
-      setPendingLinksError(err instanceof Error ? err.message : 'Could not connect to the server.')
+      setDelegationLinksError(err instanceof Error ? err.message : 'Could not connect to the server.')
     } finally {
       setAcceptingLinkID('')
     }
@@ -243,43 +242,66 @@ export default function DashboardPage() {
         </section>
       )}
 
-      {user.Role === USER_ROLES.DELEGATE && (
+      {(user.Role === USER_ROLES.DELEGATE || user.Role === USER_ROLES.OWNER) && (
         <section className="space-y-4 rounded-lg border p-6">
           <div className="space-y-1">
-            <h2 className="text-xl font-semibold">Pending delegation invitations</h2>
+            <h2 className="text-xl font-semibold">Delegation links</h2>
             <p className="text-sm text-muted-foreground">
-              Accept an invitation to activate the permissions granted by the primary user.
+              {user.Role === USER_ROLES.DELEGATE
+                ? 'Links where you are the delegate. Accept pending invitations to activate them.'
+                : 'Links where you are the primary user.'}
             </p>
           </div>
 
-          {pendingLinksError && <p role="alert" className="text-sm text-destructive">{pendingLinksError}</p>}
+          {delegationLinksError && <p role="alert" className="text-sm text-destructive">{delegationLinksError}</p>}
           {acceptedMessage && <p role="status" className="text-sm text-green-700 dark:text-green-400">{acceptedMessage}</p>}
-          {pendingLinks.length === 0 ? (
-            <p className="text-sm text-muted-foreground">You have no pending invitations.</p>
+          {delegationLinks.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No delegation links found.</p>
           ) : (
-            <ul className="space-y-4">
-              {pendingLinks.map((link) => (
-                <li key={link.id} className="space-y-3 rounded-md border p-4">
-                  <dl className="space-y-1 text-sm">
-                    <div><dt className="inline font-medium">Primary user ID: </dt><dd className="inline">{link.primary_user_id}</dd></div>
-                    <div><dt className="inline font-medium">Permissions: </dt><dd className="inline">{link.permissions.join(', ')}</dd></div>
-                    <div>
-                      <dt className="inline font-medium">Expires: </dt>
-                      <dd className="inline">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-175 border-collapse text-left text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th scope="col" className="px-3 py-2 font-medium">Link ID</th>
+                    <th scope="col" className="px-3 py-2 font-medium">
+                      {user.Role === USER_ROLES.OWNER ? 'Delegate user ID' : 'Primary user ID'}
+                    </th>
+                    <th scope="col" className="px-3 py-2 font-medium">Permissions</th>
+                    <th scope="col" className="px-3 py-2 font-medium">Expires</th>
+                    <th scope="col" className="px-3 py-2 font-medium">Status</th>
+                    {user.Role === USER_ROLES.DELEGATE && <th scope="col" className="px-3 py-2 font-medium">Action</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {delegationLinks.map((link) => (
+                    <tr key={link.id} className="border-b last:border-0">
+                      <td className="px-3 py-3 font-mono text-xs">{link.id}</td>
+                      <td className="px-3 py-3 font-mono text-xs">
+                        {user.Role === USER_ROLES.OWNER ? link.delegate_user_id : link.primary_user_id}
+                      </td>
+                      <td className="px-3 py-3">{link.permissions.join(', ')}</td>
+                      <td className="px-3 py-3">
                         {link.valid_until ? new Date(link.valid_until).toLocaleString() : 'No expiry'}
-                      </dd>
-                    </div>
-                  </dl>
-                  <Button
-                    type="button"
-                    disabled={acceptingLinkID !== ''}
-                    onClick={() => void acceptDelegationLink(link.id)}
-                  >
-                    {acceptingLinkID === link.id ? 'Accepting...' : 'Accept invitation'}
-                  </Button>
-                </li>
-              ))}
-            </ul>
+                      </td>
+                      <td className="px-3 py-3 capitalize">{link.status}</td>
+                      {user.Role === USER_ROLES.DELEGATE && (
+                        <td className="px-3 py-3">
+                          {link.status === 'pending' ? (
+                            <Button
+                              type="button"
+                              disabled={acceptingLinkID !== ''}
+                              onClick={() => void acceptDelegationLink(link.id)}
+                            >
+                              {acceptingLinkID === link.id ? 'Accepting...' : 'Accept'}
+                            </Button>
+                          ) : '—'}
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </section>
       )}
